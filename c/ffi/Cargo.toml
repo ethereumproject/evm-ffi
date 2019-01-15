@@ -16,7 +16,7 @@ sputnikvm-network-classic = { version = "0.11.0-beta", default-features = false 
 env_logger = { version = "0.5.13", optional = true }
 
 [features]
-default = ["std", "c-secp256k1", "rlp", "log"]
+default = ["std", "rust-secp256k1", "rlp", "log"]
 rlp = ["etcommon-bigint/rlp", "sputnikvm-network-classic/rlp"]
 c-secp256k1 = ["sputnikvm/c-secp256k1", "sputnikvm-network-classic/c-secp256k1"]
 rust-secp256k1 = ["sputnikvm/rust-secp256k1", "sputnikvm-network-classic/rust-secp256k1"]
