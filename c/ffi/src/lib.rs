@@ -1,26 +1,29 @@
 extern crate libc;
 extern crate bigint;
-extern crate sputnikvm;
-extern crate sputnikvm_network_classic as network;
+extern crate evm;
+extern crate evm_network_classic as network;
 
 #[cfg(feature = "log")]
 extern crate env_logger;
 
 mod common;
+mod dynamic;
 
 pub use common::{c_address, c_gas, c_u256, c_h256};
+pub use dynamic::*;
 
 use std::slice;
 use std::ptr;
 use std::rc::Rc;
 use std::ops::DerefMut;
 use std::collections::HashMap;
+use std::mem;
 use libc::{c_uchar, c_uint, c_longlong};
 use bigint::{U256, M256};
-use sputnikvm::{TransactionAction, ValidTransaction, HeaderParams, SeqTransactionVM, Patch,
+use evm::{TransactionAction, ValidTransaction, HeaderParams, SeqTransactionVM, Patch, DynamicPatch,
                 VM, VMStatus, RequireError, AccountCommitment, AccountChange, AccountPatch};
 
-use network::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch,
+use network::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch, MainnetDynamicPatch,
               FrontierPatch, HomesteadPatch, EIP150Patch, EIP160Patch};
 
 type c_action = c_uchar;
@@ -29,6 +32,7 @@ pub static CALL_ACTION: c_action = 0;
 #[no_mangle]
 pub static CREATE_ACTION: c_action = 1;
 
+#[derive(Copy, Clone, Default)]
 pub struct MordenAccountPatch;
 impl AccountPatch for MordenAccountPatch {
     fn initial_nonce() -> U256 { U256::from(1048576) }
@@ -40,9 +44,11 @@ pub type MordenFrontierPatch = FrontierPatch<MordenAccountPatch>;
 pub type MordenHomesteadPatch = HomesteadPatch<MordenAccountPatch>;
 pub type MordenEIP150Patch = EIP150Patch<MordenAccountPatch>;
 pub type MordenEIP160Patch = EIP160Patch<MordenAccountPatch>;
+pub type MordenDynamicPatch = DynamicPatch<MordenAccountPatch>;
 
 static mut CUSTOM_INITIAL_NONCE: Option<U256> = None;
 
+#[derive(Copy, Clone, Default)]
 pub struct CustomAccountPatch;
 impl AccountPatch for CustomAccountPatch {
     fn initial_nonce() -> U256 { U256::from(1048576) }
@@ -54,6 +60,7 @@ pub type CustomFrontierPatch = FrontierPatch<CustomAccountPatch>;
 pub type CustomHomesteadPatch = HomesteadPatch<CustomAccountPatch>;
 pub type CustomEIP150Patch = EIP150Patch<CustomAccountPatch>;
 pub type CustomEIP160Patch = EIP160Patch<CustomAccountPatch>;
+pub type CustomDynamicPatch = DynamicPatch<CustomAccountPatch>;
 
 #[repr(C)]
 pub struct c_transaction {
@@ -167,9 +174,7 @@ pub extern "C" fn print_u256(v: c_u256) {
 #[no_mangle]
 pub unsafe extern "C" fn sputnikvm_set_custom_initial_nonce(v: c_u256) {
     let v: U256 = v.into();
-    unsafe {
-        CUSTOM_INITIAL_NONCE = Some(v)
-    }
+    CUSTOM_INITIAL_NONCE = Some(v)
 }
 
 #[allow(unused_must_use)]
@@ -183,8 +188,8 @@ fn init_logging() {
     }
 }
 
-fn sputnikvm_new<P: Patch + 'static>(
-    transaction: c_transaction, header: c_header_params
+fn sputnikvm_new<P: Patch + Clone + 'static>(
+    patch: P, transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
     init_logging();
     let transaction = ValidTransaction {
@@ -224,7 +229,7 @@ fn sputnikvm_new<P: Patch + 'static>(
         gas_limit: header.gas_limit.into(),
     };
 
-    let vm = SeqTransactionVM::<P>::new(transaction, header);
+    let vm = SeqTransactionVM::new(patch, transaction, header);
     Box::into_raw(Box::new(Box::new(vm)))
 }
 
@@ -232,85 +237,118 @@ fn sputnikvm_new<P: Patch + 'static>(
 pub extern "C" fn sputnikvm_new_frontier(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MainnetFrontierPatch>(transaction, header)
+    sputnikvm_new(MainnetFrontierPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_homestead(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MainnetHomesteadPatch>(transaction, header)
+    sputnikvm_new(MainnetHomesteadPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_eip150(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MainnetEIP150Patch>(transaction, header)
+    sputnikvm_new(MainnetEIP150Patch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_eip160(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MainnetEIP160Patch>(transaction, header)
+    sputnikvm_new(MainnetEIP160Patch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_morden_frontier(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MordenFrontierPatch>(transaction, header)
+    sputnikvm_new(MordenFrontierPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_morden_homestead(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MordenHomesteadPatch>(transaction, header)
+    sputnikvm_new(MordenHomesteadPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_morden_eip150(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MordenEIP150Patch>(transaction, header)
+    sputnikvm_new(MordenEIP150Patch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_morden_eip160(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<MordenEIP160Patch>(transaction, header)
+    sputnikvm_new(MordenEIP160Patch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_custom_frontier(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<CustomFrontierPatch>(transaction, header)
+    sputnikvm_new(CustomFrontierPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_custom_homestead(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<CustomHomesteadPatch>(transaction, header)
+    sputnikvm_new(CustomHomesteadPatch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_custom_eip150(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<CustomEIP150Patch>(transaction, header)
+    sputnikvm_new(CustomEIP150Patch::default(), transaction, header)
 }
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_new_custom_eip160(
     transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    sputnikvm_new::<CustomEIP160Patch>(transaction, header)
+    sputnikvm_new::<CustomEIP160Patch>(CustomEIP160Patch::default(), transaction, header)
 }
+
+#[no_mangle]
+pub extern "C" fn sputnikvm_new_dynamic(
+    patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
+) -> *mut Box<VM> {
+    let patch_box: Box<MainnetDynamicPatch> = unsafe {Box::from_raw(patch as *mut MainnetDynamicPatch)};
+    let patch = (*patch_box).clone();
+    mem::forget(patch_box);
+    sputnikvm_new::<MainnetDynamicPatch>(patch, transaction, header)
+}
+
+
+#[no_mangle]
+pub extern "C" fn sputnikvm_new_morden_dynamic(
+    patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
+) -> *mut Box<VM> {
+    let patch_box: Box<MordenDynamicPatch> = unsafe {Box::from_raw(patch as *mut MordenDynamicPatch)};
+    let patch = (*patch_box).clone();
+    mem::forget(patch_box);
+    sputnikvm_new::<MordenDynamicPatch>(patch, transaction, header)
+}
+
+
+#[no_mangle]
+pub extern "C" fn sputnikvm_new_custom_dynamic(
+    patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
+) -> *mut Box<VM> {
+    let patch_box: Box<CustomDynamicPatch> = unsafe {Box::from_raw(patch as *mut CustomDynamicPatch)};
+    let patch = (*patch_box).clone();
+    mem::forget(patch_box);
+    sputnikvm_new::<CustomDynamicPatch>(patch, transaction, header)
+}
+
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_free(

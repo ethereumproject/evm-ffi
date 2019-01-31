@@ -4,6 +4,8 @@
  * @brief SputnikVM FFI Bindings
  */
 
+#include <stdbool.h>
+
 /**
  * 160-bit address.
  */
@@ -129,6 +131,119 @@ typedef struct {
   sputnikvm_u256 value;
 } sputnikvm_account_change_storage;
 
+typedef enum {
+  ETC = 0,
+  BYZANTIUM = 1,
+} sputnikvm_precompiled_contract_set;
+
+/**
+  * Custom patch construction helper type
+  */
+typedef struct {
+  /**
+   * Maximum contract size. 0 for unlimited.
+   */
+  size_t code_deposit_limit;
+  /**
+   * Limit of the call stack.
+   */
+  size_t callstack_limit;
+  /**
+   * Gas paid for extcode.
+   */
+  sputnikvm_gas gas_extcode;
+  /**
+   * Gas paid for BALANCE opcode.
+   */
+  sputnikvm_gas gas_balance;
+  /**
+   * Gas paid for SLOAD opcode.
+   */
+  sputnikvm_gas gas_sload;
+  /**
+   * Gas paid for SUICIDE opcode.
+   */
+  sputnikvm_gas gas_suicide;
+  /**
+   * Gas paid for SUICIDE opcode when it hits a new account.
+   */
+  sputnikvm_gas gas_suicide_new_account;
+  /**
+   * Gas paid for CALL opcode.
+   */
+  sputnikvm_gas gas_call;
+  /**
+   * Gas paid for EXP opcode for every byte.
+   */
+  sputnikvm_gas gas_expbyte;
+  /**
+   * Gas paid for a contract creation transaction.
+   */
+  sputnikvm_gas gas_transaction_create;
+  /**
+   * Whether to force code deposit even if it does not have enough
+   * gas.
+   */
+  bool force_code_deposit;
+  /**
+   * Whether the EVM has DELEGATECALL opcode.
+   */
+  bool has_delegate_call;
+  /**
+   * Whether the EVM has STATICCALL opcode.
+   */
+  bool has_static_call;
+  /**
+   * Whether the EVM has REVERT opcode.
+   */
+  bool has_revert;
+  /**
+   * Whether the EVM has RETURNDATASIZE and RETURNDATACOPY opcode.
+   */
+  bool has_return_data;
+  /**
+   * Whether the EVM has SHL, SHR and SAR
+   */
+  bool has_bitwise_shift;
+  /**
+   * Whether the EVM has EXTCODEHASH
+   */
+  bool has_extcodehash;
+  /**
+   * Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
+   */
+  bool has_reduced_sstore_gas_metering;
+  /**
+   * Whether to throw out of gas error when
+   * CALL/CALLCODE/DELEGATECALL requires more than maximum amount
+   * of gas.
+   */
+  bool err_on_call_with_more_gas;
+  /**
+   * If true, only consume at maximum l64(after_gas) when
+   * CALL/CALLCODE/DELEGATECALL.
+   */
+  bool call_create_l64_after_gas;
+  /**
+   * Maximum size of the memory, in bytes.
+   */
+  size_t memory_limit;
+} sputnikvm_dynamic_patch_builder;
+
+typedef void* sputnikvm_dynamic_patch;
+
+extern sputnikvm_dynamic_patch
+mainnet_dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts);
+
+extern sputnikvm_dynamic_patch
+morden_dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts);
+
+extern sputnikvm_dynamic_patch
+custom_dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts);
+
+extern void
+dynamic_patch_free(sputnikvm_dynamic_patch patch);
+
 typedef struct sputnikvm_vm_S sputnikvm_vm_t;
 
 /**
@@ -214,6 +329,15 @@ sputnikvm_new_custom_eip150(sputnikvm_transaction transaction, sputnikvm_header_
  */
 extern sputnikvm_vm_t *
 sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+extern sputnikvm_vm_t *
+sputnikvm_new_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+extern sputnikvm_vm_t *
+sputnikvm_new_morden_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+extern sputnikvm_vm_t *
+sputnikvm_new_custom_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 /**
  * Set the initial nonce value for custom patch.

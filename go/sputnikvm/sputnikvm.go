@@ -211,6 +211,91 @@ func (require *Require) BlockNumber() *big.Int {
 	}
 }
 
+type DynamicPatchBuilder struct {
+	CodeDepositLimit uint
+	CallStackLimit uint
+	GasExtcode *big.Int
+	GasBalance *big.Int
+	GasSload *big.Int
+	GasSuicide *big.Int
+	GasSuicideNewAccount *big.Int
+	GasCall *big.Int
+	GasExtbyte *big.Int
+	GasTransactionCreate *big.Int
+	ForceCodeDeposit bool
+	HasDelegateCall bool
+	HasStaticCall bool
+	HasRevert bool
+	HasReturnData bool
+	HasBitwiseShift bool
+	HasExtCodeHash bool
+	HasReducedSstoreGasMetering bool
+	ErrOnCallWithMoreGas bool
+	CallCreateL64AfterGas bool
+	MemoryLimit uint
+}
+
+func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_builder {
+	cbuilder := C.sputnikvm_dynamic_patch_builder;
+	cbuilder.code_deposit_limit = v.CodeDepositLimit
+	cbuilder.call_stack_limit = v.CallStackLimit
+	cbuilder.gas_extcode = ToCGas(v.GasExtcode)
+	cbuilder.gas_balance = ToCGas(v.GasBalance)
+	cbuilder.gas_sload = ToCGas(v.GasSload)
+	cbuilder.gas_suicide = ToCGas(v.GasSuicide)
+	cbuilder.gas_suicide_new_account = ToCGas(v.GasSuicideNewAccount)
+	cbuilder.gas_call = ToCGas(v.GasCall)
+	cbuilder.gas_expbyte = ToCGas(v.GasExtbyte)
+	cbuilder.gas_transaction_create = ToCGas(v.GasTransactionCreate)
+	cbuilder.force_code_deposit = v.ForceCodeDeposit
+	cbuilder.has_delegate_call = v.HasDelegateCall
+	cbuilder.has_static_call = v.HasStaticCall
+	cbuilder.has_revert = v.HasRevert
+	cbuilder.has_return_data = v.HasReturnData
+	cbuilder.has_bitwise_shift = v.HasBitwiseShift
+	cbuilder.has_extcodehash = v.HasExtCodeHash
+	cbuilder.has_reduced_sstore_gas_metering = v.HasReducedSstoreGasMetering
+	cbuilder.err_on_call_with_more_gas = v.ErrOnCallWithMoreGas;
+	cbuilder.call_create_l64_after_gas = v.CallCreateL64AfterGas
+	cbuilder.memory_limit = v.MemoryLimit
+	return cbuilder
+}
+
+type PrecompiledContractSet int
+
+const (
+	PRECOMPILED_CONTRACTS_ETC PrecompiledContractSet = 0
+	PRECOMPILED_CONTRACTS_BYZANTIUM = 0
+)
+
+type Network int
+
+const (
+	MAINNET Network = 0
+	MORDEN Network = 1
+	CUSTOM Network = 2
+)
+
+type DynamicPatch struct {
+	ptr C.sputnikvm_dynamic_patch
+}
+
+func NewDynamicPatchFromBuilder(builder *DynamicPatchBuilder, set PrecompiledContractSet, network Network) DynamicPatch {
+	cbuilder := ToCDynamicPatchBuilder(builder)
+	switch network {
+	case MAINNET:
+		return DynamicPatch{C.mainnet_dynamic_patch_new(cbuilder, set)}
+	case MORDEN:
+		return DynamicPatch{C.morden_dynamic_patch_new(cbuilder, set)}
+	default:
+		return DynamicPatch{C.custom_dynamic_patch_new(cbuilder, set)}
+	}
+}
+
+func FreeDynamicPatch(patch DynamicPatch) {
+	C.dynamic_patch_free(patch.ptr)
+}
+
 type Log struct {
 	Address common.Address
 	Topics  []common.Hash
@@ -504,6 +589,45 @@ func NewCustomEIP160(transaction *Transaction, header *HeaderParams) *VM {
 	cheader := ToCHeaderParams(header)
 
 	cvm := C.sputnikvm_new_custom_eip160(*ctransaction, *cheader)
+	C.free(cinput)
+
+	vm := new(VM)
+	vm.c = cvm
+
+	return vm
+}
+
+func NewDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
+	ctransaction, cinput := toCTransaction(transaction)
+	cheader := ToCHeaderParams(header)
+
+	cvm := C.sputnikvm_new_dynamic(patch, *ctransaction, *cheader)
+	C.free(cinput)
+
+	vm := new(VM)
+	vm.c = cvm
+
+	return vm
+}
+
+func NewMordenDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
+	ctransaction, cinput := toCTransaction(transaction)
+	cheader := ToCHeaderParams(header)
+
+	cvm := C.sputnikvm_new_morden_dynamic(patch, *ctransaction, *cheader)
+	C.free(cinput)
+
+	vm := new(VM)
+	vm.c = cvm
+
+	return vm
+}
+
+func NewCustomDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
+	ctransaction, cinput := toCTransaction(transaction)
+	cheader := ToCHeaderParams(header)
+
+	cvm := C.sputnikvm_new_custom_dynamic(patch, *ctransaction, *cheader)
 	C.free(cinput)
 
 	vm := new(VM)
