@@ -33,7 +33,6 @@ package sputnikvm
 import "C"
 
 import (
-	"github.com/ethereumclassic/go-ethereum/common"
 	"math/big"
 	"unsafe"
 )
@@ -76,7 +75,7 @@ func (change *AccountChange) Typ() AccountChangeType {
 	}
 }
 
-func (change *AccountChange) Address() common.Address {
+func (change *AccountChange) Address() [20]byte {
 	switch change.Typ() {
 	case AccountChangeIncreaseBalance, AccountChangeDecreaseBalance:
 		balance := C.sputnikvm_account_change_value_read_balance(change.info.value)
@@ -180,7 +179,7 @@ func (require *Require) Typ() RequireType {
 	}
 }
 
-func (require *Require) Address() common.Address {
+func (require *Require) Address() [20]byte {
 	switch require.Typ() {
 	case RequireAccount, RequireAccountCode:
 		return FromCAddress(C.sputnikvm_require_value_read_account(require.c.value))
@@ -212,8 +211,8 @@ func (require *Require) BlockNumber() *big.Int {
 }
 
 type Log struct {
-	Address common.Address
-	Topics  []common.Hash
+	Address [20]byte
+	Topics  [32]byte
 	Data    []byte
 }
 
@@ -222,17 +221,17 @@ type VM struct {
 }
 
 type Transaction struct {
-	Caller   common.Address
+	Caller   [20]byte
 	GasPrice *big.Int
 	GasLimit *big.Int
-	Address  *common.Address // If it is nil, then we take it as a Create transaction.
+	Address  []byte // If it is nil, then we take it as a Create transaction.
 	Value    *big.Int
 	Input    []byte
 	Nonce    *big.Int
 }
 
 type HeaderParams struct {
-	Beneficiary common.Address
+	Beneficiary [20]byte
 	Timestamp   uint64
 	Number      *big.Int
 	Difficulty  *big.Int
@@ -287,7 +286,12 @@ func FromCGas(v C.sputnikvm_gas) *big.Int {
 	return i
 }
 
-func ToCAddress(v common.Address) C.sputnikvm_address {
+// NOTE: We can use non-nil len and capped bytes because these functions are never
+// intended to handle the case when a transaction is passed a nil 'To' value
+// indicating a contract creation transaction. Using bytes with explicit lengths
+// helps reader and developer differentiate Address vs. Hash values, as well
+// as being generally more descriptive code.
+func ToCAddress(v [20]byte) C.sputnikvm_address {
 	caddress := new(C.sputnikvm_address)
 	for i := 0; i < 20; i++ {
 		caddress.data[i] = C.uchar(v[i])
@@ -295,15 +299,15 @@ func ToCAddress(v common.Address) C.sputnikvm_address {
 	return *caddress
 }
 
-func FromCAddress(v C.sputnikvm_address) common.Address {
-	address := new(common.Address)
+func FromCAddress(v C.sputnikvm_address) [20]byte {
+	b := make([]byte, 20, 20)
 	for i := 0; i < 20; i++ {
-		address[i] = byte(v.data[i])
+		b[i] = byte(v.data[i])
 	}
-	return *address
+	return b
 }
 
-func ToCH256(v common.Hash) C.sputnikvm_h256 {
+func ToCH256(v [32]byte) C.sputnikvm_h256 {
 	chash := new(C.sputnikvm_h256)
 	for i := 0; i < 32; i++ {
 		chash.data[i] = C.uchar(v[i])
@@ -311,12 +315,12 @@ func ToCH256(v common.Hash) C.sputnikvm_h256 {
 	return *chash
 }
 
-func FromCH256(v C.sputnikvm_h256) common.Hash {
-	hash := new(common.Hash)
+func sFromCH256(v C.sputnikvm_h256) [32]byte {
+	b := make([]byte, 20, 20)
 	for i := 0; i < 32; i++ {
-		hash[i] = byte(v.data[i])
+		b[i] = byte(v.data[i])
 	}
-	return *hash
+	return b
 }
 
 func toCTransaction(transaction *Transaction) (*C.sputnikvm_transaction, unsafe.Pointer) {
@@ -335,7 +339,11 @@ func toCTransaction(transaction *Transaction) (*C.sputnikvm_transaction, unsafe.
 		ctransaction.action = C.sputnikvm_action(C.CREATE_ACTION)
 	} else {
 		ctransaction.action = C.sputnikvm_action(C.CALL_ACTION)
-		ctransaction.action_address = ToCAddress(*transaction.Address)
+		baddr := make([]byte, 20, 20)
+		for i := 0; i < 20; i++ {
+			baddr[i] = *transaction.Address[i]
+		}
+		ctransaction.action_address = ToCAddress(baddr)
 	}
 	ctransaction.value = ToCU256(transaction.Value)
 	ctransaction.input = (*C.uchar)(cinput)
@@ -528,7 +536,7 @@ func (vm *VM) Free() {
 	C.sputnikvm_free(vm.c)
 }
 
-func (vm *VM) CommitAccount(address common.Address, nonce *big.Int, balance *big.Int, code []byte) {
+func (vm *VM) CommitAccount(address [20]byte, nonce *big.Int, balance *big.Int, code []byte) {
 	caddress := ToCAddress(address)
 	cnonce := ToCU256(nonce)
 	cbalance := ToCU256(balance)
@@ -542,7 +550,7 @@ func (vm *VM) CommitAccount(address common.Address, nonce *big.Int, balance *big
 	C.free(ccode)
 }
 
-func (vm *VM) CommitAccountCode(address common.Address, code []byte) {
+func (vm *VM) CommitAccountCode(address [20]byte, code []byte) {
 	caddress := ToCAddress(address)
 	ccode := C.malloc(C.size_t(len(code)))
 	for i := 0; i < len(code); i++ {
@@ -554,7 +562,7 @@ func (vm *VM) CommitAccountCode(address common.Address, code []byte) {
 	C.free(ccode)
 }
 
-func (vm *VM) CommitAccountStorage(address common.Address, key *big.Int, value *big.Int) {
+func (vm *VM) CommitAccountStorage(address [20]byte, key *big.Int, value *big.Int) {
 	caddress := ToCAddress(address)
 	ckey := ToCU256(key)
 	cvalue := ToCU256(value)
@@ -562,12 +570,12 @@ func (vm *VM) CommitAccountStorage(address common.Address, key *big.Int, value *
 	C.sputnikvm_commit_account_storage(vm.c, caddress, ckey, cvalue)
 }
 
-func (vm *VM) CommitNonexist(address common.Address) {
+func (vm *VM) CommitNonexist(address [20]byte) {
 	caddress := ToCAddress(address)
 	C.sputnikvm_commit_nonexist(vm.c, caddress)
 }
 
-func (vm *VM) CommitBlockhash(number *big.Int, hash common.Hash) {
+func (vm *VM) CommitBlockhash(number *big.Int, hash [32]byte) {
 	cnumber := ToCU256(number)
 	chash := ToCH256(hash)
 	C.sputnikvm_commit_blockhash(vm.c, cnumber, chash)
@@ -587,7 +595,7 @@ func (vm *VM) Logs() []Log {
 		i_clog := unsafe.Pointer(uintptr(clogs) + (uintptr(i) * uintptr(C.sizeof_sputnikvm_log)))
 		clog := (*C.sputnikvm_log)(i_clog)
 		address := FromCAddress(clog.address)
-		topics := make([]common.Hash, 0)
+		topics := make([][32]byte, 0)
 		for j := 0; j < int(uint(clog.topic_len)); j++ {
 			topics = append(topics, FromCH256(C.sputnikvm_logs_topic(vm.c, C.uint(i), C.uint(j))))
 		}
