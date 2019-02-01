@@ -212,7 +212,7 @@ func (require *Require) BlockNumber() *big.Int {
 
 type Log struct {
 	Address [20]byte
-	Topics  [32]byte
+	Topics  [][32]byte
 	Data    []byte
 }
 
