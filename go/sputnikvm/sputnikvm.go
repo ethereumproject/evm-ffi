@@ -235,9 +235,9 @@ type DynamicPatchBuilder struct {
 }
 
 func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_builder {
-	cbuilder := C.sputnikvm_dynamic_patch_builder;
-	cbuilder.code_deposit_limit = v.CodeDepositLimit
-	cbuilder.call_stack_limit = v.CallStackLimit
+	cbuilder := new(C.sputnikvm_dynamic_patch_builder)
+	cbuilder.code_deposit_limit = C.ulong(v.CodeDepositLimit)
+	cbuilder.callstack_limit = C.ulong(v.CallStackLimit)
 	cbuilder.gas_extcode = ToCGas(v.GasExtcode)
 	cbuilder.gas_balance = ToCGas(v.GasBalance)
 	cbuilder.gas_sload = ToCGas(v.GasSload)
@@ -246,18 +246,18 @@ func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_bu
 	cbuilder.gas_call = ToCGas(v.GasCall)
 	cbuilder.gas_expbyte = ToCGas(v.GasExtbyte)
 	cbuilder.gas_transaction_create = ToCGas(v.GasTransactionCreate)
-	cbuilder.force_code_deposit = v.ForceCodeDeposit
-	cbuilder.has_delegate_call = v.HasDelegateCall
-	cbuilder.has_static_call = v.HasStaticCall
-	cbuilder.has_revert = v.HasRevert
-	cbuilder.has_return_data = v.HasReturnData
-	cbuilder.has_bitwise_shift = v.HasBitwiseShift
-	cbuilder.has_extcodehash = v.HasExtCodeHash
-	cbuilder.has_reduced_sstore_gas_metering = v.HasReducedSstoreGasMetering
-	cbuilder.err_on_call_with_more_gas = v.ErrOnCallWithMoreGas;
-	cbuilder.call_create_l64_after_gas = v.CallCreateL64AfterGas
-	cbuilder.memory_limit = v.MemoryLimit
-	return cbuilder
+	cbuilder.force_code_deposit = C.bool(v.ForceCodeDeposit)
+	cbuilder.has_delegate_call = C.bool(v.HasDelegateCall)
+	cbuilder.has_static_call = C.bool(v.HasStaticCall)
+	cbuilder.has_revert = C.bool(v.HasRevert)
+	cbuilder.has_return_data = C.bool(v.HasReturnData)
+	cbuilder.has_bitwise_shift = C.bool(v.HasBitwiseShift)
+	cbuilder.has_extcodehash = C.bool(v.HasExtCodeHash)
+	cbuilder.has_reduced_sstore_gas_metering = C.bool(v.HasReducedSstoreGasMetering)
+	cbuilder.err_on_call_with_more_gas = C.bool(v.ErrOnCallWithMoreGas)
+	cbuilder.call_create_l64_after_gas = C.bool(v.CallCreateL64AfterGas)
+	cbuilder.memory_limit = C.ulong(v.MemoryLimit)
+	return *cbuilder
 }
 
 type PrecompiledContractSet int
@@ -283,11 +283,11 @@ func NewDynamicPatchFromBuilder(builder *DynamicPatchBuilder, set PrecompiledCon
 	cbuilder := ToCDynamicPatchBuilder(builder)
 	switch network {
 	case MAINNET:
-		return DynamicPatch{C.mainnet_dynamic_patch_new(cbuilder, set)}
+		return DynamicPatch{C.mainnet_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
 	case MORDEN:
-		return DynamicPatch{C.morden_dynamic_patch_new(cbuilder, set)}
+		return DynamicPatch{C.morden_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
 	default:
-		return DynamicPatch{C.custom_dynamic_patch_new(cbuilder, set)}
+		return DynamicPatch{C.custom_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
 	}
 }
 
@@ -297,7 +297,7 @@ func FreeDynamicPatch(patch DynamicPatch) {
 
 type Log struct {
 	Address [20]byte
-	Topics  [32]byte
+	Topics  [][32]byte
 	Data    []byte
 }
 
@@ -385,7 +385,7 @@ func ToCAddress(v [20]byte) C.sputnikvm_address {
 }
 
 func FromCAddress(v C.sputnikvm_address) [20]byte {
-	b := make([]byte, 20, 20)
+	var b [20]byte
 	for i := 0; i < 20; i++ {
 		b[i] = byte(v.data[i])
 	}
@@ -400,8 +400,8 @@ func ToCH256(v [32]byte) C.sputnikvm_h256 {
 	return *chash
 }
 
-func sFromCH256(v C.sputnikvm_h256) [32]byte {
-	b := make([]byte, 20, 20)
+func FromCH256(v C.sputnikvm_h256) [32]byte {
+	var b [32]byte
 	for i := 0; i < 32; i++ {
 		b[i] = byte(v.data[i])
 	}
@@ -420,13 +420,13 @@ func toCTransaction(transaction *Transaction) (*C.sputnikvm_transaction, unsafe.
 	ctransaction.caller = ToCAddress(transaction.Caller)
 	ctransaction.gas_price = ToCGas(transaction.GasPrice)
 	ctransaction.gas_limit = ToCGas(transaction.GasLimit)
-	if transaction.Address == nil {
+	if len(transaction.Address) == 0 {
 		ctransaction.action = C.sputnikvm_action(C.CREATE_ACTION)
 	} else {
 		ctransaction.action = C.sputnikvm_action(C.CALL_ACTION)
-		baddr := make([]byte, 20, 20)
+		var baddr [20]byte
 		for i := 0; i < 20; i++ {
-			baddr[i] = *transaction.Address[i]
+			baddr[i] = transaction.Address[i]
 		}
 		ctransaction.action_address = ToCAddress(baddr)
 	}
@@ -609,7 +609,7 @@ func NewDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderPara
 	ctransaction, cinput := toCTransaction(transaction)
 	cheader := ToCHeaderParams(header)
 
-	cvm := C.sputnikvm_new_dynamic(patch, *ctransaction, *cheader)
+	cvm := C.sputnikvm_new_dynamic(patch.ptr, *ctransaction, *cheader)
 	C.free(cinput)
 
 	vm := new(VM)
@@ -622,7 +622,7 @@ func NewMordenDynamic(patch DynamicPatch, transaction *Transaction, header *Head
 	ctransaction, cinput := toCTransaction(transaction)
 	cheader := ToCHeaderParams(header)
 
-	cvm := C.sputnikvm_new_morden_dynamic(patch, *ctransaction, *cheader)
+	cvm := C.sputnikvm_new_morden_dynamic(patch.ptr, *ctransaction, *cheader)
 	C.free(cinput)
 
 	vm := new(VM)
@@ -635,7 +635,7 @@ func NewCustomDynamic(patch DynamicPatch, transaction *Transaction, header *Head
 	ctransaction, cinput := toCTransaction(transaction)
 	cheader := ToCHeaderParams(header)
 
-	cvm := C.sputnikvm_new_custom_dynamic(patch, *ctransaction, *cheader)
+	cvm := C.sputnikvm_new_custom_dynamic(patch.ptr, *ctransaction, *cheader)
 	C.free(cinput)
 
 	vm := new(VM)

@@ -331,13 +331,13 @@ extern sputnikvm_vm_t *
 sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 extern sputnikvm_vm_t *
-sputnikvm_new_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
+sputnikvm_new_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 extern sputnikvm_vm_t *
-sputnikvm_new_morden_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
+sputnikvm_new_morden_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 extern sputnikvm_vm_t *
-sputnikvm_new_custom_dynamic(sputnikvm_dynamic_patch *patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
+sputnikvm_new_custom_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 /**
  * Set the initial nonce value for custom patch.
