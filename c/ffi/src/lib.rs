@@ -23,7 +23,7 @@ use bigint::{U256, M256};
 use evm::{TransactionAction, ValidTransaction, HeaderParams, SeqTransactionVM, Patch, DynamicPatch,
                 VM, VMStatus, RequireError, AccountCommitment, AccountChange, AccountPatch};
 
-use network::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch, MainnetDynamicPatch,
+use network::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch,
               FrontierPatch, HomesteadPatch, EIP150Patch, EIP160Patch};
 
 type c_action = c_uchar;
@@ -35,32 +35,30 @@ pub static CREATE_ACTION: c_action = 1;
 #[derive(Copy, Clone, Default)]
 pub struct MordenAccountPatch;
 impl AccountPatch for MordenAccountPatch {
-    fn initial_nonce() -> U256 { U256::from(1048576) }
-    fn initial_create_nonce() -> U256 { Self::initial_nonce() }
-    fn empty_considered_exists() -> bool { true }
+    fn initial_nonce(&self) -> U256 { U256::from(1048576) }
+    fn initial_create_nonce(&self) -> U256 { self.initial_nonce() }
+    fn empty_considered_exists(&self) -> bool { true }
 }
 
 pub type MordenFrontierPatch = FrontierPatch<MordenAccountPatch>;
 pub type MordenHomesteadPatch = HomesteadPatch<MordenAccountPatch>;
 pub type MordenEIP150Patch = EIP150Patch<MordenAccountPatch>;
 pub type MordenEIP160Patch = EIP160Patch<MordenAccountPatch>;
-pub type MordenDynamicPatch = DynamicPatch<MordenAccountPatch>;
 
 static mut CUSTOM_INITIAL_NONCE: Option<U256> = None;
 
 #[derive(Copy, Clone, Default)]
 pub struct CustomAccountPatch;
 impl AccountPatch for CustomAccountPatch {
-    fn initial_nonce() -> U256 { U256::from(1048576) }
-    fn initial_create_nonce() -> U256 { Self::initial_nonce() }
-    fn empty_considered_exists() -> bool { true }
+    fn initial_nonce(&self) -> U256 { U256::from(1048576) }
+    fn initial_create_nonce(&self) -> U256 { self.initial_nonce() }
+    fn empty_considered_exists(&self) -> bool { true }
 }
 
 pub type CustomFrontierPatch = FrontierPatch<CustomAccountPatch>;
 pub type CustomHomesteadPatch = HomesteadPatch<CustomAccountPatch>;
 pub type CustomEIP150Patch = EIP150Patch<CustomAccountPatch>;
 pub type CustomEIP160Patch = EIP160Patch<CustomAccountPatch>;
-pub type CustomDynamicPatch = DynamicPatch<CustomAccountPatch>;
 
 #[repr(C)]
 pub struct c_transaction {
@@ -321,34 +319,11 @@ pub extern "C" fn sputnikvm_new_custom_eip160(
 pub extern "C" fn sputnikvm_new_dynamic(
     patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
-    let patch_box: Box<MainnetDynamicPatch> = unsafe {Box::from_raw(patch as *mut MainnetDynamicPatch)};
+    let patch_box: Box<DynamicPatch> = unsafe {Box::from_raw(patch as *mut DynamicPatch)};
     let patch = (*patch_box).clone();
     mem::forget(patch_box);
-    sputnikvm_new::<MainnetDynamicPatch>(patch, transaction, header)
+    sputnikvm_new::<DynamicPatch>(patch, transaction, header)
 }
-
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_morden_dynamic(
-    patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    let patch_box: Box<MordenDynamicPatch> = unsafe {Box::from_raw(patch as *mut MordenDynamicPatch)};
-    let patch = (*patch_box).clone();
-    mem::forget(patch_box);
-    sputnikvm_new::<MordenDynamicPatch>(patch, transaction, header)
-}
-
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_custom_dynamic(
-    patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    let patch_box: Box<CustomDynamicPatch> = unsafe {Box::from_raw(patch as *mut CustomDynamicPatch)};
-    let patch = (*patch_box).clone();
-    mem::forget(patch_box);
-    sputnikvm_new::<CustomDynamicPatch>(patch, transaction, header)
-}
-
 
 #[no_mangle]
 pub extern "C" fn sputnikvm_free(
@@ -549,7 +524,7 @@ pub extern "C" fn sputnikvm_logs_copy_info(
     {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         let logs = vm.logs();
-        let mut logs_write = unsafe { slice::from_raw_parts_mut(log, log_len as usize) };
+        let logs_write = unsafe { slice::from_raw_parts_mut(log, log_len as usize) };
         for i in 0..logs_write.len() {
             if i < logs.len() {
                 logs_write[i] = c_log {
@@ -585,7 +560,7 @@ pub extern "C" fn sputnikvm_logs_copy_data(
     {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         let logs = vm.logs();
-        let mut data_w = unsafe { slice::from_raw_parts_mut(data_w, data_w_len as usize) };
+        let data_w = unsafe { slice::from_raw_parts_mut(data_w, data_w_len as usize) };
         for i in 0..data_w.len() {
             if i < logs[log_index as usize].data.len() {
                 data_w[i] = logs[log_index as usize].data[i];
@@ -617,7 +592,7 @@ pub extern "C" fn sputnikvm_account_changes_copy_info(
     {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         let accounts = vm.accounts();
-        let mut w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
+        let w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
         for (i, account) in accounts.enumerate() {
             if i < w.len() {
                 w[i] = match account {
@@ -684,7 +659,7 @@ pub extern "C" fn sputnikvm_account_changes_copy_storage(
     {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         let accounts = vm.accounts();
-        let mut w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
+        let w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
         let target_address = address.into();
         for account in accounts {
             match account {
@@ -741,7 +716,7 @@ pub extern "C" fn sputnikvm_account_changes_copy_code(
     {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         let accounts = vm.accounts();
-        let mut w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
+        let w = unsafe { slice::from_raw_parts_mut(w, wl as usize) };
         let target_address = address.into();
         for account in accounts {
             match account {
@@ -821,7 +796,7 @@ pub extern "C" fn sputnikvm_status_failed(vm: *mut Box<VM>) -> c_uchar {
         let vm: &mut VM = vm_box.deref_mut().deref_mut();
         match vm.status() {
             VMStatus::ExitedErr(_) => ret = 1,
-            default => ret = 0,
+            _ => ret = 0,
         }
     }
     Box::into_raw(vm_box);

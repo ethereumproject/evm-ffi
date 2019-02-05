@@ -136,6 +136,13 @@ typedef enum {
   BYZANTIUM = 1,
 } sputnikvm_precompiled_contract_set;
 
+typedef struct {
+    sputnikvm_u256 initial_nonce;
+    sputnikvm_u256 initial_create_nonce;
+    bool empty_considered_exists;
+    bool allow_partial_change;
+} sputnikvm_dynamic_account_patch;
+
 /**
   * Custom patch construction helper type
   */
@@ -231,6 +238,9 @@ typedef struct {
 } sputnikvm_dynamic_patch_builder;
 
 typedef void* sputnikvm_dynamic_patch;
+
+extern sputnikvm_dynamic_patch
+dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts, sputnikvm_dynamic_account_patch account_patch);
 
 extern sputnikvm_dynamic_patch
 mainnet_dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts);
@@ -332,12 +342,6 @@ sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_
 
 extern sputnikvm_vm_t *
 sputnikvm_new_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 /**
  * Set the initial nonce value for custom patch.

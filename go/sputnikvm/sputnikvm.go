@@ -260,6 +260,22 @@ func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_bu
 	return *cbuilder
 }
 
+type DynamicAccountPatch struct {
+	InitialNonce *big.Int
+	InitialCreateNonce *big.Int
+	EmptyConsideredExists bool
+	AllowPartialChange bool
+}
+
+func ToCDynamicAccountPatch(v *DynamicAccountPatch) C.sputnikvm_dynamic_account_patch {
+	cpatch := new(C.sputnikvm_dynamic_account_patch)
+	cpatch.initial_nonce = ToCU256(v.InitialNonce)
+	cpatch.initial_create_nonce = ToCU256(v.InitialCreateNonce)
+	cpatch.empty_considered_exists = C.bool(v.EmptyConsideredExists)
+	cpatch.allow_partial_change = C.bool(v.AllowPartialChange)
+	return *cpatch
+}
+
 type PrecompiledContractSet int
 
 const (
@@ -279,7 +295,7 @@ type DynamicPatch struct {
 	ptr C.sputnikvm_dynamic_patch
 }
 
-func NewDynamicPatchFromBuilder(builder *DynamicPatchBuilder, set PrecompiledContractSet, network Network) DynamicPatch {
+func NewDynamicPatchFromNetwork(builder *DynamicPatchBuilder, set PrecompiledContractSet, network Network) DynamicPatch {
 	cbuilder := ToCDynamicPatchBuilder(builder)
 	switch network {
 	case MAINNET:
@@ -289,6 +305,12 @@ func NewDynamicPatchFromBuilder(builder *DynamicPatchBuilder, set PrecompiledCon
 	default:
 		return DynamicPatch{C.custom_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
 	}
+}
+
+func NewDynamicPatch(builder *DynamicPatchBuilder, set PrecompiledContractSet, accountPatch *DynamicAccountPatch) DynamicPatch {
+	cbuilder := ToCDynamicPatchBuilder(builder)
+	cpatch := ToCDynamicAccountPatch(accountPatch)
+	return DynamicPatch{ C.dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set), cpatch)}
 }
 
 func FreeDynamicPatch(patch DynamicPatch) {
@@ -610,32 +632,6 @@ func NewDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderPara
 	cheader := ToCHeaderParams(header)
 
 	cvm := C.sputnikvm_new_dynamic(patch.ptr, *ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewMordenDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_morden_dynamic(patch.ptr, *ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewCustomDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_custom_dynamic(patch.ptr, *ctransaction, *cheader)
 	C.free(cinput)
 
 	vm := new(VM)
