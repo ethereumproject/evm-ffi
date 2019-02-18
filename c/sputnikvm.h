@@ -235,12 +235,14 @@ typedef struct {
    * Maximum size of the memory, in bytes.
    */
   size_t memory_limit;
+  sputnikvm_address* enabled_contracts;
+  size_t enabled_contracts_length;
 } sputnikvm_dynamic_patch_builder;
 
 typedef void* sputnikvm_dynamic_patch;
 
 extern sputnikvm_dynamic_patch
-dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts, sputnikvm_dynamic_account_patch account_patch);
+dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_dynamic_account_patch account_patch);
 
 extern sputnikvm_dynamic_patch
 mainnet_dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_precompiled_contract_set contracts);
@@ -256,98 +258,8 @@ dynamic_patch_free(sputnikvm_dynamic_patch patch);
 
 typedef struct sputnikvm_vm_S sputnikvm_vm_t;
 
-/**
- * Create a new frontier patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new frontier morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new frontier custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
 extern sputnikvm_vm_t *
 sputnikvm_new_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Set the initial nonce value for custom patch.
- */
-extern void
-sputnikvm_set_custom_initial_nonce(sputnikvm_u256 nonce);
 
 /**
  * Execute the VM until it reaches a require error.

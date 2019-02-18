@@ -232,9 +232,15 @@ type DynamicPatchBuilder struct {
 	ErrOnCallWithMoreGas bool
 	CallCreateL64AfterGas bool
 	MemoryLimit uint
+	EnabledContracts [][20]byte
 }
 
 func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_builder {
+	cEnabledContracts := make([]C.sputnikvm_address, len(v.EnabledContracts))
+	for i := 0; i < len(v.EnabledContracts); i++ {
+		cEnabledContracts[i] = ToCAddress(v.EnabledContracts[i])
+	}
+
 	cbuilder := new(C.sputnikvm_dynamic_patch_builder)
 	cbuilder.code_deposit_limit = C.ulong(v.CodeDepositLimit)
 	cbuilder.callstack_limit = C.ulong(v.CallStackLimit)
@@ -257,6 +263,9 @@ func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_bu
 	cbuilder.err_on_call_with_more_gas = C.bool(v.ErrOnCallWithMoreGas)
 	cbuilder.call_create_l64_after_gas = C.bool(v.CallCreateL64AfterGas)
 	cbuilder.memory_limit = C.ulong(v.MemoryLimit)
+	cbuilder.enabled_contracts = &cEnabledContracts[0]
+	cbuilder.enabled_contracts_length = C.ulong(len(cEnabledContracts))
+
 	return *cbuilder
 }
 
@@ -276,41 +285,14 @@ func ToCDynamicAccountPatch(v *DynamicAccountPatch) C.sputnikvm_dynamic_account_
 	return *cpatch
 }
 
-type PrecompiledContractSet int
-
-const (
-	PRECOMPILED_CONTRACTS_ETC PrecompiledContractSet = 0
-	PRECOMPILED_CONTRACTS_BYZANTIUM = 0
-)
-
-type Network int
-
-const (
-	MAINNET Network = 0
-	MORDEN Network = 1
-	CUSTOM Network = 2
-)
-
 type DynamicPatch struct {
 	ptr C.sputnikvm_dynamic_patch
 }
 
-func NewDynamicPatchFromNetwork(builder *DynamicPatchBuilder, set PrecompiledContractSet, network Network) DynamicPatch {
-	cbuilder := ToCDynamicPatchBuilder(builder)
-	switch network {
-	case MAINNET:
-		return DynamicPatch{C.mainnet_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
-	case MORDEN:
-		return DynamicPatch{C.morden_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
-	default:
-		return DynamicPatch{C.custom_dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set))}
-	}
-}
-
-func NewDynamicPatch(builder *DynamicPatchBuilder, set PrecompiledContractSet, accountPatch *DynamicAccountPatch) DynamicPatch {
+func NewDynamicPatch(builder *DynamicPatchBuilder, accountPatch *DynamicAccountPatch) DynamicPatch {
 	cbuilder := ToCDynamicPatchBuilder(builder)
 	cpatch := ToCDynamicAccountPatch(accountPatch)
-	return DynamicPatch{ C.dynamic_patch_new(cbuilder, C.sputnikvm_precompiled_contract_set(set), cpatch)}
+	return DynamicPatch{ C.dynamic_patch_new(cbuilder, cpatch)}
 }
 
 func FreeDynamicPatch(patch DynamicPatch) {
@@ -471,162 +453,6 @@ func ToCHeaderParams(header *HeaderParams) *C.sputnikvm_header_params {
 	return cheader
 }
 
-func NewFrontier(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_frontier(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewHomestead(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_homestead(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewEIP150(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_eip150(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewEIP160(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_eip160(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewMordenFrontier(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_morden_frontier(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewMordenHomestead(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_morden_homestead(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewMordenEIP150(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_morden_eip150(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewMordenEIP160(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_morden_eip160(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewCustomFrontier(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_custom_frontier(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewCustomHomestead(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_custom_homestead(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewCustomEIP150(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_custom_eip150(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
-func NewCustomEIP160(transaction *Transaction, header *HeaderParams) *VM {
-	ctransaction, cinput := toCTransaction(transaction)
-	cheader := ToCHeaderParams(header)
-
-	cvm := C.sputnikvm_new_custom_eip160(*ctransaction, *cheader)
-	C.free(cinput)
-
-	vm := new(VM)
-	vm.c = cvm
-
-	return vm
-}
-
 func NewDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderParams) *VM {
 	ctransaction, cinput := toCTransaction(transaction)
 	cheader := ToCHeaderParams(header)
@@ -638,11 +464,6 @@ func NewDynamic(patch DynamicPatch, transaction *Transaction, header *HeaderPara
 	vm.c = cvm
 
 	return vm
-}
-
-func SetCustomInitialNonce(nonce *big.Int) {
-	cnonce := ToCU256(nonce)
-	C.sputnikvm_set_custom_initial_nonce(cnonce)
 }
 
 func (vm *VM) Fire() Require {

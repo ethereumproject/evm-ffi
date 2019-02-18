@@ -1,10 +1,12 @@
+#![allow(non_camel_case_types)]
 extern crate libc;
 extern crate bigint;
 extern crate evm;
-extern crate evm_network_classic as network;
+extern crate evm_network as network;
 
 #[cfg(feature = "log")]
 extern crate env_logger;
+extern crate smallvec;
 
 mod common;
 mod dynamic;
@@ -21,44 +23,13 @@ use std::mem;
 use libc::{c_uchar, c_uint, c_longlong};
 use bigint::{U256, M256};
 use evm::{TransactionAction, ValidTransaction, HeaderParams, SeqTransactionVM, Patch, DynamicPatch,
-                VM, VMStatus, RequireError, AccountCommitment, AccountChange, AccountPatch};
-
-use network::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch,
-              FrontierPatch, HomesteadPatch, EIP150Patch, EIP160Patch};
+                VM, VMStatus, RequireError, AccountCommitment, AccountChange};
 
 type c_action = c_uchar;
 #[no_mangle]
 pub static CALL_ACTION: c_action = 0;
 #[no_mangle]
 pub static CREATE_ACTION: c_action = 1;
-
-#[derive(Copy, Clone, Default)]
-pub struct MordenAccountPatch;
-impl AccountPatch for MordenAccountPatch {
-    fn initial_nonce(&self) -> U256 { U256::from(1048576) }
-    fn initial_create_nonce(&self) -> U256 { self.initial_nonce() }
-    fn empty_considered_exists(&self) -> bool { true }
-}
-
-pub type MordenFrontierPatch = FrontierPatch<MordenAccountPatch>;
-pub type MordenHomesteadPatch = HomesteadPatch<MordenAccountPatch>;
-pub type MordenEIP150Patch = EIP150Patch<MordenAccountPatch>;
-pub type MordenEIP160Patch = EIP160Patch<MordenAccountPatch>;
-
-static mut CUSTOM_INITIAL_NONCE: Option<U256> = None;
-
-#[derive(Copy, Clone, Default)]
-pub struct CustomAccountPatch;
-impl AccountPatch for CustomAccountPatch {
-    fn initial_nonce(&self) -> U256 { U256::from(1048576) }
-    fn initial_create_nonce(&self) -> U256 { self.initial_nonce() }
-    fn empty_considered_exists(&self) -> bool { true }
-}
-
-pub type CustomFrontierPatch = FrontierPatch<CustomAccountPatch>;
-pub type CustomHomesteadPatch = HomesteadPatch<CustomAccountPatch>;
-pub type CustomEIP150Patch = EIP150Patch<CustomAccountPatch>;
-pub type CustomEIP160Patch = EIP160Patch<CustomAccountPatch>;
 
 #[repr(C)]
 pub struct c_transaction {
@@ -169,12 +140,6 @@ pub extern "C" fn print_u256(v: c_u256) {
     println!("{}", v);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn sputnikvm_set_custom_initial_nonce(v: c_u256) {
-    let v: U256 = v.into();
-    CUSTOM_INITIAL_NONCE = Some(v)
-}
-
 #[allow(unused_must_use)]
 fn init_logging() {
     // WARN: result is left unhandled on purpose.
@@ -229,90 +194,6 @@ fn sputnikvm_new<P: Patch + Clone + 'static>(
 
     let vm = SeqTransactionVM::new(patch, transaction, header);
     Box::into_raw(Box::new(Box::new(vm)))
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_frontier(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MainnetFrontierPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_homestead(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MainnetHomesteadPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_eip150(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MainnetEIP150Patch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_eip160(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MainnetEIP160Patch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_morden_frontier(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MordenFrontierPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_morden_homestead(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MordenHomesteadPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_morden_eip150(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MordenEIP150Patch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_morden_eip160(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(MordenEIP160Patch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_custom_frontier(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(CustomFrontierPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_custom_homestead(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(CustomHomesteadPatch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_custom_eip150(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new(CustomEIP150Patch::default(), transaction, header)
-}
-
-#[no_mangle]
-pub extern "C" fn sputnikvm_new_custom_eip160(
-    transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
-    sputnikvm_new::<CustomEIP160Patch>(CustomEIP160Patch::default(), transaction, header)
 }
 
 #[no_mangle]

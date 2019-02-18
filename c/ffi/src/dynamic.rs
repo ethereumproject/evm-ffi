@@ -1,16 +1,13 @@
 #[cfg(not(feature = "std"))] use core::ffi::c_void;
 #[cfg(feature = "std")] use std::ffi::c_void;
+#[cfg(not(feature = "std"))] use core::slice;
+#[cfg(feature = "std")] use std::slice;
 
-use evm::{AccountPatch, DynamicPatch, DynamicAccountPatch};
+use evm::{DynamicPatch, DynamicAccountPatch};
 use common::{c_gas, c_u256};
-use network::{MainnetAccountPatch, MordenAccountPatch, ETC_PRECOMPILEDS, BYZANTIUM_PRECOMPILEDS};
-use CustomAccountPatch;
-
-#[repr(C)]
-pub enum precompiled_contract_set {
-    ETC = 0,
-    BYZANTIUM = 1,
-}
+use network::PRECOMPILEDS;
+use c_address;
+use smallvec::SmallVec;
 
 #[repr(C)]
 pub struct dynamic_patch_builder {
@@ -61,6 +58,9 @@ pub struct dynamic_patch_builder {
     /// Maximum size of the memory, in bytes.
     /// NOTE: **NOT** runtime-configurable by block number
     pub memory_limit: usize,
+    /// Enabled precompiled contracts array
+    pub enabled_contracts: *const c_address,
+    pub enabled_contracts_length: usize,
 }
 
 #[repr(C)]
@@ -85,7 +85,14 @@ impl From<dynamic_account_patch> for DynamicAccountPatch {
 pub type dynamic_patch_box = c_void;
 
 #[no_mangle]
-extern "C" fn dynamic_patch_new(builder: dynamic_patch_builder, contracts: precompiled_contract_set, account_patch: dynamic_account_patch) -> *mut dynamic_patch_box {
+extern "C" fn dynamic_patch_new(builder: dynamic_patch_builder, account_patch: dynamic_account_patch) -> *mut dynamic_patch_box {
+    let mut enabled_contracts = SmallVec::new();
+    let c_enabled_contracts = unsafe {  slice::from_raw_parts(builder.enabled_contracts, builder.enabled_contracts_length) };
+    for c_address in c_enabled_contracts {
+        let address = (*c_address).into();
+        enabled_contracts.push(address);
+    };
+
     let patch = DynamicPatch {
         account_patch: DynamicAccountPatch::from(account_patch),
         code_deposit_limit: if builder.code_deposit_limit == 0 { None } else { Some(builder.code_deposit_limit) },
@@ -109,39 +116,11 @@ extern "C" fn dynamic_patch_new(builder: dynamic_patch_builder, contracts: preco
         err_on_call_with_more_gas: builder.err_on_call_with_more_gas,
         call_create_l64_after_gas: builder.call_create_l64_after_gas,
         memory_limit: builder.memory_limit,
-        precompileds: match contracts {
-            precompiled_contract_set::ETC => &ETC_PRECOMPILEDS,
-            precompiled_contract_set::BYZANTIUM => &BYZANTIUM_PRECOMPILEDS,
-        },
+        enabled_precompileds: enabled_contracts,
+        precompileds: &PRECOMPILEDS,
     };
 
     Box::into_raw(Box::new(patch)) as *mut dynamic_patch_box
-}
-
-fn dynamic_patch_new_compat<A: AccountPatch>(builder: dynamic_patch_builder, contracts: precompiled_contract_set, patch: A) -> *mut dynamic_patch_box {
-    let patch = dynamic_account_patch {
-        initial_nonce: patch.initial_nonce().into(),
-        initial_create_nonce: patch.initial_create_nonce().into(),
-        empty_considered_exists: patch.empty_considered_exists(),
-        allow_partial_change: patch.allow_partial_change(),
-    };
-
-    dynamic_patch_new(builder, contracts, patch)
-}
-
-#[no_mangle]
-pub extern "C" fn mainnet_dynamic_patch_new(builder: dynamic_patch_builder, contracts: precompiled_contract_set) -> *mut dynamic_patch_box {
-    dynamic_patch_new_compat(builder, contracts, MainnetAccountPatch::default())
-}
-
-#[no_mangle]
-pub extern "C" fn morden_dynamic_patch_new(builder: dynamic_patch_builder, contracts: precompiled_contract_set) -> *mut dynamic_patch_box {
-    dynamic_patch_new_compat(builder, contracts, MordenAccountPatch::default())
-}
-
-#[no_mangle]
-pub extern "C" fn custom_dynamic_patch_new(builder: dynamic_patch_builder, contracts: precompiled_contract_set) -> *mut dynamic_patch_box {
-    dynamic_patch_new_compat(builder, contracts, CustomAccountPatch::default())
 }
 
 #[no_mangle]

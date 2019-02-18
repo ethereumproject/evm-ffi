@@ -10,15 +10,17 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 libc = "0.2"
-etcommon-bigint = { version = "0.2", default-features = false }
-evm = { version = "0.11.0-beta", path = "../../../sputnikvm/", default-features = false }
-evm-network-classic = { version = "0.11.0-beta", path = "../../../sputnikvm/network/classic", default-features = false }
+ethereum-bigint = { version = "0.2", default-features = false }
+evm = { version = "0.11.0-beta", path = "../../../evm-rs/", default-features = false }
+evm-network = { version = "0.11.0-beta", path = "../../../evm-rs/network/dynamic", default-features = false }
+smallvec = { version = "0.6.8", default-features = false }
 env_logger = { version = "0.5.13", optional = true }
+
 
 [features]
 default = ["std", "rust-secp256k1", "rlp", "log"]
-rlp = ["etcommon-bigint/rlp", "evm-network-classic/rlp"]
-c-secp256k1 = ["evm/c-secp256k1", "evm-network-classic/c-secp256k1"]
-rust-secp256k1 = ["evm/rust-secp256k1", "evm-network-classic/rust-secp256k1"]
-std = ["evm/std", "evm-network-classic/std"]
+rlp = ["ethereum-bigint/rlp", "evm-network/rlp"]
+c-secp256k1 = ["evm/c-secp256k1", "evm-network/c-secp256k1"]
+rust-secp256k1 = ["evm/rust-secp256k1", "evm-network/rust-secp256k1"]
+std = ["evm/std", "evm-network/std", "smallvec/std"]
 log = ["env_logger"]
