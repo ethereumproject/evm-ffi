@@ -1,18 +1,11 @@
 #![allow(non_camel_case_types)]
-extern crate libc;
-extern crate bigint;
-extern crate evm;
 extern crate evm_network as network;
-
-#[cfg(feature = "log")]
-extern crate env_logger;
-extern crate smallvec;
 
 mod common;
 mod dynamic;
 
-pub use common::{c_address, c_gas, c_u256, c_h256};
-pub use dynamic::*;
+pub use crate::common::{c_address, c_gas, c_u256, c_h256};
+pub use crate::dynamic::*;
 
 use std::slice;
 use std::ptr;

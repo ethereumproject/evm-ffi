@@ -4,10 +4,11 @@
 #[cfg(feature = "std")] use std::slice;
 
 use evm::{DynamicPatch, DynamicAccountPatch};
-use common::{c_gas, c_u256};
 use network::PRECOMPILEDS;
-use c_address;
 use smallvec::SmallVec;
+
+use crate::common::{c_gas, c_u256};
+use crate::c_address;
 
 #[repr(C)]
 pub struct dynamic_patch_builder {
