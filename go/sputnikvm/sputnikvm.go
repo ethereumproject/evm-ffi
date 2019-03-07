@@ -219,7 +219,7 @@ type DynamicPatchBuilder struct {
 	GasSuicide *big.Int
 	GasSuicideNewAccount *big.Int
 	GasCall *big.Int
-	GasExtbyte *big.Int
+	GasExpbyte *big.Int
 	GasTransactionCreate *big.Int
 	ForceCodeDeposit bool
 	HasDelegateCall bool
@@ -250,7 +250,7 @@ func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_bu
 	cbuilder.gas_suicide = ToCGas(v.GasSuicide)
 	cbuilder.gas_suicide_new_account = ToCGas(v.GasSuicideNewAccount)
 	cbuilder.gas_call = ToCGas(v.GasCall)
-	cbuilder.gas_expbyte = ToCGas(v.GasExtbyte)
+	cbuilder.gas_expbyte = ToCGas(v.GasExpbyte)
 	cbuilder.gas_transaction_create = ToCGas(v.GasTransactionCreate)
 	cbuilder.force_code_deposit = C.bool(v.ForceCodeDeposit)
 	cbuilder.has_delegate_call = C.bool(v.HasDelegateCall)
