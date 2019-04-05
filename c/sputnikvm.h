@@ -217,6 +217,10 @@ typedef struct {
    */
   bool has_extcodehash;
   /**
+   * Whether EVM has CREATE2
+   */
+  bool has_create2;
+  /**
    * Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
    */
   bool has_reduced_sstore_gas_metering;

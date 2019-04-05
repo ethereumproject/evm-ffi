@@ -227,6 +227,7 @@ type DynamicPatchBuilder struct {
 	HasRevert bool
 	HasReturnData bool
 	HasBitwiseShift bool
+	HasCreate2 bool
 	HasExtCodeHash bool
 	HasReducedSstoreGasMetering bool
 	ErrOnCallWithMoreGas bool
@@ -258,6 +259,7 @@ func ToCDynamicPatchBuilder(v *DynamicPatchBuilder) C.sputnikvm_dynamic_patch_bu
 	cbuilder.has_revert = C.bool(v.HasRevert)
 	cbuilder.has_return_data = C.bool(v.HasReturnData)
 	cbuilder.has_bitwise_shift = C.bool(v.HasBitwiseShift)
+	cbuilder.has_create2 = C.bool(v.HasCreate2)
 	cbuilder.has_extcodehash = C.bool(v.HasExtCodeHash)
 	cbuilder.has_reduced_sstore_gas_metering = C.bool(v.HasReducedSstoreGasMetering)
 	cbuilder.err_on_call_with_more_gas = C.bool(v.ErrOnCallWithMoreGas)

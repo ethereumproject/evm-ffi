@@ -12,7 +12,6 @@ use std::ptr;
 use std::rc::Rc;
 use std::ops::DerefMut;
 use std::collections::HashMap;
-use std::mem;
 use libc::{c_uchar, c_uint, c_longlong};
 use bigint::{U256, M256};
 use evm::{TransactionAction, ValidTransaction, HeaderParams, SeqTransactionVM, Patch, DynamicPatch,
@@ -144,9 +143,9 @@ fn init_logging() {
     }
 }
 
-fn sputnikvm_new<P: Patch + Clone + 'static>(
-    patch: P, transaction: c_transaction, header: c_header_params
-) -> *mut Box<VM> {
+fn sputnikvm_new<'a, P: Patch + Clone + 'static>(
+    patch: &'a P, transaction: c_transaction, header: c_header_params
+) -> *mut Box<dyn VM + 'a> {
     init_logging();
     let transaction = ValidTransaction {
         caller: Some(transaction.caller.into()),
@@ -194,8 +193,7 @@ pub extern "C" fn sputnikvm_new_dynamic(
     patch: *mut dynamic_patch_box, transaction: c_transaction, header: c_header_params
 ) -> *mut Box<VM> {
     let patch_box: Box<DynamicPatch> = unsafe {Box::from_raw(patch as *mut DynamicPatch)};
-    let patch = (*patch_box).clone();
-    mem::forget(patch_box);
+    let patch = Box::leak(patch_box);
     sputnikvm_new::<DynamicPatch>(patch, transaction, header)
 }
 

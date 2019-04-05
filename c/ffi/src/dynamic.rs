@@ -45,6 +45,8 @@ pub struct dynamic_patch_builder {
     pub has_return_data: bool,
     /// Whether the EVM has SHL, SHR and SAR
     pub has_bitwise_shift: bool,
+    /// Whether the EVM has CREATE2
+    pub has_create2: bool,
     /// Whether the EVM has EXTCODEHASH
     pub has_extcodehash: bool,
     /// Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
@@ -111,6 +113,7 @@ extern "C" fn dynamic_patch_new(builder: dynamic_patch_builder, account_patch: d
         has_static_call: builder.has_static_call,
         has_revert: builder.has_revert,
         has_return_data: builder.has_return_data,
+        has_create2: builder.has_create2,
         has_bitwise_shift: builder.has_bitwise_shift,
         has_extcodehash: builder.has_extcodehash,
         has_reduced_sstore_gas_metering: builder.has_reduced_sstore_gas_metering,
