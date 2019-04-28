@@ -146,7 +146,7 @@ fn init_logging() {
 fn sputnikvm_new<'a, P: Patch + Clone + 'static>(
     patch: &'a P, transaction: c_transaction, header: c_header_params
 ) -> *mut Box<dyn VM + 'a> {
-    init_logging();
+    init_logging();;
     let transaction = ValidTransaction {
         caller: Some(transaction.caller.into()),
         gas_price: transaction.gas_price.into(),
