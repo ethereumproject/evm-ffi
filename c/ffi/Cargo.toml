@@ -1,5 +1,5 @@
 [package]
-name = "sputnikvm-ffi"
+name = "evm-ffi"
 version = "0.11.0"
 authors = ["Wei Tang <hi@that.world>", "Mike Lubinets <lubinetsm@yandex.ru>"]
 repository = "https://github.com/ethereumproject/evm-ffi"
