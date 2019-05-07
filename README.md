@@ -9,9 +9,7 @@ library.
 
 In `c` folder, run `make build`. It will generate an object file
 `libsputnikvm.so`, and you can use the header file `sputnikvm.h` to
-interact with it. You can find the generated documentation file for
-`sputnikvm.h`
-[here](https://ETCDEVTeam.github.io/sputnikvm-ffi/sputnikvm_8h.html).
+interact with it. 
 
 ### Go
 
@@ -20,7 +18,7 @@ interact with it. You can find the generated documentation file for
 Import the `sputnikvm` library to your application:
 
 ```
-import "github.com/ETCDEVTeam/sputnikvm-ffi/go/sputnikvm"
+import "github.com/ethereumproject/evm-ffi/go/sputnikvm"
 ```
 
 Build a static library for the C FFI, which will give you an
@@ -35,9 +33,5 @@ When building your Go application, pass `CGO_LDFLAGS` to link the C
 library.
 
 ```
-CGO_LDFLAGS="/path/to/libsputnikvm.a -ldl" go build .
+CGO_LDFLAGS="/path/to/libsputnikvm.a -ldl -lm" go build .
 ```
-
-Refer to
-[GoDoc](https://godoc.org/github.com/ETCDEVTeam/sputnikvm-ffi/go/sputnikvm)
-for documentation of the Go bindings.

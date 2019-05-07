@@ -4,6 +4,8 @@
  * @brief SputnikVM FFI Bindings
  */
 
+#include <stdbool.h>
+
 /**
  * 160-bit address.
  */
@@ -129,97 +131,131 @@ typedef struct {
   sputnikvm_u256 value;
 } sputnikvm_account_change_storage;
 
+typedef struct {
+    sputnikvm_u256 initial_nonce;
+    sputnikvm_u256 initial_create_nonce;
+    bool empty_considered_exists;
+    bool allow_partial_change;
+} sputnikvm_dynamic_account_patch;
+
+/**
+  * Custom patch construction helper type
+  */
+typedef struct {
+  /**
+   * Maximum contract size. 0 for unlimited.
+   */
+  size_t code_deposit_limit;
+  /**
+   * Limit of the call stack.
+   */
+  size_t callstack_limit;
+  /**
+   * Gas paid for extcode.
+   */
+  sputnikvm_gas gas_extcode;
+  /**
+   * Gas paid for BALANCE opcode.
+   */
+  sputnikvm_gas gas_balance;
+  /**
+   * Gas paid for SLOAD opcode.
+   */
+  sputnikvm_gas gas_sload;
+  /**
+   * Gas paid for SUICIDE opcode.
+   */
+  sputnikvm_gas gas_suicide;
+  /**
+   * Gas paid for SUICIDE opcode when it hits a new account.
+   */
+  sputnikvm_gas gas_suicide_new_account;
+  /**
+   * Gas paid for CALL opcode.
+   */
+  sputnikvm_gas gas_call;
+  /**
+   * Gas paid for EXP opcode for every byte.
+   */
+  sputnikvm_gas gas_expbyte;
+  /**
+   * Gas paid for a contract creation transaction.
+   */
+  sputnikvm_gas gas_transaction_create;
+  /**
+   * Whether to force code deposit even if it does not have enough
+   * gas.
+   */
+  bool force_code_deposit;
+  /**
+   * Whether the EVM has DELEGATECALL opcode.
+   */
+  bool has_delegate_call;
+  /**
+   * Whether the EVM has STATICCALL opcode.
+   */
+  bool has_static_call;
+  /**
+   * Whether the EVM has REVERT opcode.
+   */
+  bool has_revert;
+  /**
+   * Whether the EVM has RETURNDATASIZE and RETURNDATACOPY opcode.
+   */
+  bool has_return_data;
+  /**
+   * Whether the EVM has SHL, SHR and SAR
+   */
+  bool has_bitwise_shift;
+  /**
+   * Whether the EVM has EXTCODEHASH
+   */
+  bool has_extcodehash;
+  /**
+   * Whether EVM has CREATE2
+   */
+  bool has_create2;
+  /**
+   * Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
+   */
+  bool has_reduced_sstore_gas_metering;
+  /**
+   * Whether to throw out of gas error when
+   * CALL/CALLCODE/DELEGATECALL requires more than maximum amount
+   * of gas.
+   */
+  bool err_on_call_with_more_gas;
+  /**
+   * If true, only consume at maximum l64(after_gas) when
+   * CALL/CALLCODE/DELEGATECALL.
+   */
+  bool call_create_l64_after_gas;
+  /**
+   * Maximum size of the memory, in bytes.
+   */
+  size_t memory_limit;
+  /**
+   * Array of addresses of enabled precompiled smart contracts
+   */
+  sputnikvm_address* enabled_contracts;
+  /**
+   * Length of array of addresses of enabled precompiled smart contracts
+   */
+  size_t enabled_contracts_length;
+} sputnikvm_dynamic_patch_builder;
+
+typedef void* sputnikvm_dynamic_patch;
+
+extern sputnikvm_dynamic_patch
+dynamic_patch_new(sputnikvm_dynamic_patch_builder builder, sputnikvm_dynamic_account_patch account_patch);
+
+extern void
+dynamic_patch_free(sputnikvm_dynamic_patch patch);
+
 typedef struct sputnikvm_vm_S sputnikvm_vm_t;
 
-/**
- * Create a new frontier patch EVM instance using the given
- * transaction and header parameters.
- */
 extern sputnikvm_vm_t *
-sputnikvm_new_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new frontier morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 morden patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_morden_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new frontier custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new homestead custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP150 custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Create a new EIP160 custom patch EVM instance using the given
- * transaction and header parameters.
- */
-extern sputnikvm_vm_t *
-sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
-
-/**
- * Set the initial nonce value for custom patch.
- */
-extern void
-sputnikvm_set_custom_initial_nonce(sputnikvm_u256 nonce);
+sputnikvm_new_dynamic(sputnikvm_dynamic_patch patch, sputnikvm_transaction transaction, sputnikvm_header_params header);
 
 /**
  * Execute the VM until it reaches a require error.
@@ -342,15 +378,214 @@ sputnikvm_default_header_params(void);
 extern char
 sputnikvm_status_failed(sputnikvm_vm_t *vm);
 
-
 /**
- * Returns len of output
+ * Execute the VM until it reaches a require error.
  */
-extern unsigned int
-sputnikvm_out_len(sputnikvm_vm_t *vm);
+extern sputnikvm_require
+sputnikvm_fire(sputnikvm_vm_t *vm);
 
 /**
- * Returns output
+ * Free a VM instance.
  */
 extern void
-sputnikvm_out_copy_data(sputnikvm_vm_t *vm,unsigned char *w);
+sputnikvm_free(sputnikvm_vm_t *vm);
+
+/**
+ * Commit a full account value into the VM. Should be used together
+ * with RequireError.
+ */
+extern int
+sputnikvm_commit_account(sputnikvm_vm_t *vm, sputnikvm_address address, sputnikvm_u256 nonce, sputnikvm_u256 balance, unsigned char *code, unsigned int code_len);
+
+/**
+ * Commit a partial account code value into the VM. Should be used
+ * together with RequireError.
+ */
+extern int
+sputnikvm_commit_account_code(sputnikvm_vm_t *vm, sputnikvm_address address, unsigned char *code, unsigned int code_len);
+
+/**
+ * Commit a single account storage key-value pair into the VM. Should
+ * be used together with RequireError.
+ */
+extern int
+sputnikvm_commit_account_storage(sputnikvm_vm_t *vm, sputnikvm_address address, sputnikvm_u256 key, sputnikvm_u256 value);
+
+/**
+ * Mark a given required account as not-existing. Should be used
+ * together with RequireError.
+ */
+extern int
+sputnikvm_commit_nonexist(sputnikvm_vm_t *vm, sputnikvm_address address);
+
+/**
+ * Commit a block hash value with the specified block number. Should
+ * be used together with RequireError.
+ */
+extern int
+sputnikvm_commit_blockhash(sputnikvm_vm_t *vm, sputnikvm_u256 number, sputnikvm_h256 hash);
+
+/**
+ * Return the length of the logs after the VM has exited.
+ */
+extern unsigned int
+sputnikvm_logs_len(sputnikvm_vm_t *vm);
+
+/**
+ * Copy the appended VM logs information after the VM has exited.
+ */
+extern void
+sputnikvm_logs_copy_info(sputnikvm_vm_t *vm, sputnikvm_log *log, unsigned int log_len);
+
+/**
+ * Get the given VM logs topic. The log_index and topic_index must be
+ * within the limit fetched from logs_len and logs_info.
+ */
+extern sputnikvm_h256
+sputnikvm_logs_topic(sputnikvm_vm_t *vm, unsigned int log_index, unsigned int topic_index);
+
+/**
+ * Copy the data field of the given log.
+ */
+extern void
+sputnikvm_logs_copy_data(sputnikvm_vm_t *vm, unsigned int log_index, unsigned char *data, unsigned int data_len);
+
+/**
+ * Get the account change length after the VM has exited.
+ */
+extern unsigned int
+sputnikvm_account_changes_len(sputnikvm_vm_t *vm);
+
+/**
+ * Copy account change information.
+ */
+extern void
+sputnikvm_account_changes_copy_info(sputnikvm_vm_t *vm, sputnikvm_account_change *w, unsigned int len);
+
+/**
+ * Copy storage value for a single account change entry. Note that
+ * storage values are unordered.
+ */
+extern int
+sputnikvm_account_changes_copy_storage(sputnikvm_vm_t *vm, sputnikvm_address address, sputnikvm_account_change_storage *w, unsigned int len);
+
+/**
+ * Copy code for a single account change entry.
+ */
+extern int
+sputnikvm_account_changes_copy_code(sputnikvm_vm_t *vm, sputnikvm_address address, unsigned char *w, unsigned int len);
+
+/**
+ * Return the used gas after the VM has exited.
+ */
+extern sputnikvm_gas
+sputnikvm_used_gas(sputnikvm_vm_t *vm);
+
+/**
+ * Default all-zero transaction value.
+ */
+extern sputnikvm_transaction
+sputnikvm_default_transaction(void);
+
+/**
+ * Default all-zero header parameter value.
+ */
+extern sputnikvm_header_params
+sputnikvm_default_header_params(void);
+
+/**
+ * Returns 1 if VM failed (VMStatus::ExitedErr), 0 otherwise (including VM is still running).
+ */
+extern char
+sputnikvm_status_failed(sputnikvm_vm_t *vm);
+
+/** LEGACY ETC SPECIFIC API **/
+/**
+ * Create a new frontier patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new homestead patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP150 patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP160 patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new frontier morden patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_morden_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new homestead morden patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_morden_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP150 morden patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_morden_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP160 morden patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_morden_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new frontier custom patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_custom_frontier(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new homestead custom patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_custom_homestead(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP150 custom patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_custom_eip150(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Create a new EIP160 custom patch EVM instance using the given
+ * transaction and header parameters.
+ */
+extern sputnikvm_vm_t *
+sputnikvm_new_custom_eip160(sputnikvm_transaction transaction, sputnikvm_header_params header);
+
+/**
+ * Set the initial nonce value for custom patch.
+ */
+extern void
+sputnikvm_set_custom_initial_nonce(sputnikvm_u256 nonce);
